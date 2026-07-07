@@ -38,5 +38,5 @@ public struct Session: Equatable, Identifiable, Sendable {
 public func projectName(fromCwd cwd: String?) -> String {
     guard let cwd, !cwd.isEmpty else { return "unknown" }
     let name = (cwd as NSString).lastPathComponent
-    return name.isEmpty ? "unknown" : name
+    return (name.isEmpty || name == "/") ? "unknown" : name
 }

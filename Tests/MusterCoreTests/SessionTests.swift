@@ -7,6 +7,8 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(projectName(fromCwd: "/Users/jlk/Projects/muster/"), "muster")
         XCTAssertEqual(projectName(fromCwd: nil), "unknown")
         XCTAssertEqual(projectName(fromCwd: ""), "unknown")
+        XCTAssertEqual(projectName(fromCwd: "/"), "unknown")
+        XCTAssertEqual(projectName(fromCwd: "//"), "unknown")
     }
 
     func testStatusEquatable() {
