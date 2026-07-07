@@ -6,11 +6,16 @@ let package = Package(
     platforms: [.macOS(.v13)],
     products: [
         .library(name: "MusterCore", targets: ["MusterCore"]),
+        .library(name: "MusterKit", targets: ["MusterKit"]),
         .executable(name: "muster-hook", targets: ["muster-hook"]),
+        .executable(name: "Muster", targets: ["Muster"]),
     ],
     targets: [
         .target(name: "MusterCore"),
+        .target(name: "MusterKit", dependencies: ["MusterCore"]),
         .executableTarget(name: "muster-hook", dependencies: ["MusterCore"]),
+        .executableTarget(name: "Muster", dependencies: ["MusterKit"]),
         .testTarget(name: "MusterCoreTests", dependencies: ["MusterCore"]),
+        .testTarget(name: "MusterKitTests", dependencies: ["MusterKit"]),
     ]
 )
