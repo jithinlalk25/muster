@@ -33,4 +33,24 @@ final class TranscriptReaderTests: XCTestCase {
         XCTAssertTrue(messages.isEmpty)
         XCTAssertNil(title)
     }
+
+    func testToolResultRendered() {
+        let t = #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_result","content":"ok"}]}}"#
+        let (messages, _) = TranscriptReader().parse(t)
+        XCTAssertEqual(messages.count, 1)
+        XCTAssertEqual(messages[0].text, "[tool result]")
+    }
+
+    func testThinkingOnlyMessageDropped() {
+        let t = #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"hmm"}]}}"#
+        let (messages, _) = TranscriptReader().parse(t)
+        XCTAssertTrue(messages.isEmpty)
+    }
+
+    func testMissingRoleFallsBackToOther() {
+        let t = #"{"type":"user","message":{"content":"hi"}}"#
+        let (messages, _) = TranscriptReader().parse(t)
+        XCTAssertEqual(messages.count, 1)
+        XCTAssertEqual(messages[0].role, .other)
+    }
 }
