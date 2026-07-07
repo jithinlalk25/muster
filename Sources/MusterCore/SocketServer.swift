@@ -11,8 +11,8 @@ public enum SocketError: Error, Equatable {
 /// Threading contract: `start()`, `stop()`, and all internal state are confined
 /// to `queue` (the queue passed to `init`). Client accept/read handlers run on
 /// `queue`, so `stop()` MUST be called on `queue` too — with the default `.main`
-/// queue, call it on the main thread. Calling `stop()` from another thread races
-/// the handlers.
+/// queue, call it on the main thread. Calling `start()`/`stop()` from another
+/// thread traps via `dispatchPrecondition` in debug builds.
 public final class SocketServer {
     public typealias Handler = (HookEvent) -> Void
 
@@ -33,6 +33,7 @@ public final class SocketServer {
     var clientCount: Int { clientSources.count }
 
     public func start() throws {
+        dispatchPrecondition(condition: .onQueue(queue))
         let dir = (path as NSString).deletingLastPathComponent
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         unlink(path) // clear any stale socket file
@@ -57,6 +58,7 @@ public final class SocketServer {
     }
 
     public func stop() {
+        dispatchPrecondition(condition: .onQueue(queue))
         acceptSource?.cancel()
         acceptSource = nil
         clientSources.values.forEach { $0.cancel() }
