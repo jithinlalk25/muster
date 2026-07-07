@@ -1,5 +1,10 @@
-// Replaced in Task 13 with the real AppKit lifecycle. Placeholder so the
-// executable target builds until then. Never run this placeholder as the app.
-import Foundation
-import MusterKit
-_ = MusterKit.coreVersion
+import AppKit
+
+// Menu-bar accessory app: no Dock icon, no default window. The status item and
+// floating panel are installed by AppDelegate. Runs under `swift run` and when
+// bundled as Muster.app (LSUIElement).
+let app = NSApplication.shared
+let delegate = AppDelegate()
+app.delegate = delegate
+app.setActivationPolicy(.accessory)
+app.run()
