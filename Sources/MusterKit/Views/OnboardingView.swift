@@ -30,6 +30,9 @@ public struct OnboardingView: View {
 
             Toggle("Launch Muster at login", isOn: $model.launchAtLogin)
                 .font(.system(size: 12))
+                .onChange(of: model.launchAtLogin) { newValue in
+                    model.setLaunch(newValue)
+                }
 
             if let error = model.lastError {
                 Text(error)

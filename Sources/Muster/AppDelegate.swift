@@ -32,9 +32,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let panel = PanelController(vm: vm)
         self.panel = panel
 
-        let statusItem = StatusItemController(vm: vm) { [weak panel] button in
-            panel?.toggle(relativeTo: button)
-        }
+        let statusItem = StatusItemController(
+            vm: vm,
+            onToggle: { [weak panel] button in panel?.toggle(relativeTo: button) },
+            onShowSettings: { [weak self] in self?.showOnboarding() },
+            onQuit: { NSApp.terminate(nil) }
+        )
         self.statusItem = statusItem
 
         if !HookInstaller().isInstalled(in: SettingsStore(path: settingsPath).read()) {
@@ -47,6 +50,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showOnboarding() {
+        if let existing = onboardingWindow {
+            NSApp.activate(ignoringOtherApps: true)
+            existing.makeKeyAndOrderFront(nil)
+            return
+        }
         let model = OnboardingModel(
             settings: SettingsStore(path: settingsPath),
             binaryPath: hookBinaryPath,

@@ -41,6 +41,7 @@ public final class OnboardingModel: ObservableObject {
     }
 
     public func install() {
+        lastError = nil
         do {
             let (after, _) = settings.proposedInstall(binaryPath: binaryPath, installer: installer)
             try settings.write(after)
@@ -55,6 +56,7 @@ public final class OnboardingModel: ObservableObject {
     }
 
     public func uninstall() {
+        lastError = nil
         do {
             let after = installer.uninstall(from: settings.read())
             try settings.write(after)
@@ -63,5 +65,13 @@ public final class OnboardingModel: ObservableObject {
         } catch {
             lastError = "Uninstall failed: \(error)"
         }
+    }
+
+    /// Apply the launch-at-login preference immediately, so the toggle is authoritative
+    /// whether or not hooks are currently installed. Records any failure in lastError.
+    public func setLaunch(_ enabled: Bool) {
+        lastError = nil
+        do { try launch.setEnabled(enabled) }
+        catch { lastError = "Login item: \(error)" }
     }
 }

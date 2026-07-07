@@ -7,16 +7,24 @@ import MusterKit
 final class StatusItemController {
     private let item: NSStatusItem
     private let onToggle: (NSStatusBarButton?) -> Void
+    private let onShowSettings: () -> Void
+    private let onQuit: () -> Void
     private var cancellable: AnyCancellable?
 
-    init(vm: SessionViewModel, onToggle: @escaping (NSStatusBarButton?) -> Void) {
+    init(vm: SessionViewModel,
+         onToggle: @escaping (NSStatusBarButton?) -> Void,
+         onShowSettings: @escaping () -> Void,
+         onQuit: @escaping () -> Void) {
         self.item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.onToggle = onToggle
+        self.onShowSettings = onShowSettings
+        self.onQuit = onQuit
 
         if let button = item.button {
             button.target = self
             button.action = #selector(clicked)
             button.imagePosition = .imageLeading
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         render(BadgeState(needsYouCount: 0))
         cancellable = vm.$badge.sink { [weak self] badge in self?.render(badge) }
@@ -38,6 +46,27 @@ final class StatusItemController {
     }
 
     @objc private func clicked() {
-        onToggle(item.button)
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            showMenu()
+        } else {
+            onToggle(item.button)
+        }
     }
+
+    private func showMenu() {
+        let menu = NSMenu()
+        let settings = NSMenuItem(title: "Settings…", action: #selector(settingsClicked), keyEquivalent: ",")
+        settings.target = self
+        menu.addItem(settings)
+        menu.addItem(.separator())
+        let quit = NSMenuItem(title: "Quit Muster", action: #selector(quitClicked), keyEquivalent: "q")
+        quit.target = self
+        menu.addItem(quit)
+        if let button = item.button {
+            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
+        }
+    }
+
+    @objc private func settingsClicked() { onShowSettings() }
+    @objc private func quitClicked() { onQuit() }
 }

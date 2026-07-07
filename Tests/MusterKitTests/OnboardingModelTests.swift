@@ -76,4 +76,21 @@ final class OnboardingModelTests: XCTestCase {
         XCTAssertTrue(model.isInstalled)
         XCTAssertTrue(HookInstaller().isInstalled(in: SettingsStore(path: path).read()))
     }
+
+    func testSetLaunchAppliesToLoginItem() {
+        let launch = FakeLaunch()
+        let model = makeModel(launch)
+        model.setLaunch(true)
+        XCTAssertTrue(launch.enabled)
+        XCTAssertNil(model.lastError)
+        model.setLaunch(false)
+        XCTAssertFalse(launch.enabled)
+    }
+
+    func testSetLaunchRecordsErrorOnThrow() {
+        let model = OnboardingModel(settings: SettingsStore(path: path), binaryPath: bin,
+                                    installer: HookInstaller(), launch: ThrowingLaunch())
+        model.setLaunch(true)
+        XCTAssertNotNil(model.lastError)
+    }
 }
