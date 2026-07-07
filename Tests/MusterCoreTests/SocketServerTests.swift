@@ -26,4 +26,30 @@ final class SocketServerTests: XCTestCase {
         wait(for: [received], timeout: 2.0)
         XCTAssertEqual(got, ev)
     }
+
+    func testClientSourceReclaimedOnDisconnect() throws {
+        let path = NSTemporaryDirectory() + "muster-cleanup-\(UUID().uuidString).sock"
+        let got = expectation(description: "event received")
+        let server = SocketServer(path: path, queue: .main) { _ in got.fulfill() }
+        try server.start()
+        defer { server.stop() }
+
+        let fd = try XCTUnwrap(UnixSocket.connect(path: path))
+        let ev = HookEvent(event: .stop, sessionId: "s1",
+                           timestamp: Date(timeIntervalSince1970: 1))
+        let line = try ev.wireLine()
+        line.withUnsafeBytes { _ = write(fd, $0.baseAddress, line.count) }
+        wait(for: [got], timeout: 2.0)
+        XCTAssertEqual(server.clientCount, 1)
+
+        close(fd) // client disconnects -> server should reclaim its source
+        let reclaimed = expectation(description: "client source reclaimed")
+        func poll() {
+            if server.clientCount == 0 { reclaimed.fulfill() }
+            else { DispatchQueue.main.asyncAfter(deadline: .now() + 0.02, execute: poll) }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02, execute: poll)
+        wait(for: [reclaimed], timeout: 2.0)
+        XCTAssertEqual(server.clientCount, 0)
+    }
 }

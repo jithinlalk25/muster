@@ -6,6 +6,13 @@ public enum SocketError: Error, Equatable {
     case listen(Int32)
 }
 
+/// Unix-domain-socket listener that decodes newline-delimited HookEvents.
+///
+/// Threading contract: `start()`, `stop()`, and all internal state are confined
+/// to `queue` (the queue passed to `init`). Client accept/read handlers run on
+/// `queue`, so `stop()` MUST be called on `queue` too — with the default `.main`
+/// queue, call it on the main thread. Calling `stop()` from another thread races
+/// the handlers.
 public final class SocketServer {
     public typealias Handler = (HookEvent) -> Void
 
@@ -14,13 +21,16 @@ public final class SocketServer {
     private let handler: Handler
     private var listenFD: Int32 = -1
     private var acceptSource: DispatchSourceRead?
-    private var clientSources: [DispatchSourceRead] = []
+    private var clientSources: [Int32: DispatchSourceRead] = [:]
 
     public init(path: String, queue: DispatchQueue = .main, handler: @escaping Handler) {
         self.path = path
         self.queue = queue
         self.handler = handler
     }
+
+    /// Live client-connection count. Test/introspection only; read on `queue`.
+    var clientCount: Int { clientSources.count }
 
     public func start() throws {
         let dir = (path as NSString).deletingLastPathComponent
@@ -49,7 +59,7 @@ public final class SocketServer {
     public func stop() {
         acceptSource?.cancel()
         acceptSource = nil
-        clientSources.forEach { $0.cancel() }
+        clientSources.values.forEach { $0.cancel() }
         clientSources.removeAll()
         if listenFD >= 0 { close(listenFD); listenFD = -1 }
         unlink(path)
@@ -61,17 +71,23 @@ public final class SocketServer {
         let framer = MessageFramer()
         let csrc = DispatchSource.makeReadSource(fileDescriptor: cfd, queue: queue)
         csrc.setEventHandler { [weak self] in
+            guard let self else { return }
             var buf = [UInt8](repeating: 0, count: 4096)
             let n = read(cfd, &buf, buf.count)
-            if n <= 0 { csrc.cancel(); return }
+            if n <= 0 { self.cancelClient(cfd); return }
             for line in framer.push(Data(buf[0..<n])) {
                 if let ev = try? HookEvent.decode(wire: line) {
-                    self?.handler(ev)
+                    self.handler(ev)
                 }
             }
         }
         csrc.setCancelHandler { close(cfd) }
+        clientSources[cfd] = csrc
         csrc.resume()
-        clientSources.append(csrc)
+    }
+
+    private func cancelClient(_ cfd: Int32) {
+        clientSources[cfd]?.cancel()
+        clientSources[cfd] = nil
     }
 }
