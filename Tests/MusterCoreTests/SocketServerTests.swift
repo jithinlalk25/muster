@@ -52,4 +52,25 @@ final class SocketServerTests: XCTestCase {
         wait(for: [reclaimed], timeout: 2.0)
         XCTAssertEqual(server.clientCount, 0)
     }
+
+    func testConnectedSocketSurvivesWriteToClosedPeer() throws {
+        // Proves UnixSocket.connect sets SO_NOSIGPIPE: without it, writing to a
+        // peer that has closed delivers SIGPIPE and kills this test process.
+        let path = NSTemporaryDirectory() + "muster-sigpipe-\(UUID().uuidString).sock"
+        let server = SocketServer(path: path, queue: .main) { _ in }
+        try server.start()
+        let fd = try XCTUnwrap(UnixSocket.connect(path: path))
+        server.stop() // close the peer end
+
+        let payload = [UInt8]("x\n".utf8)
+        var result = 0
+        for _ in 0..<1000 {
+            result = payload.withUnsafeBytes { write(fd, $0.baseAddress, payload.count) }
+            if result <= 0 { break }
+        }
+        close(fd)
+        // Reaching here at all proves no SIGPIPE killed us; the write must have
+        // eventually failed (EPIPE) rather than succeeding forever.
+        XCTAssertLessThanOrEqual(result, 0)
+    }
 }

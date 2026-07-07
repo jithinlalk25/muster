@@ -17,9 +17,15 @@ public enum UnixSocket {
     }
 
     /// Connect to a listening Unix socket. Returns a connected fd, or nil on failure.
+    ///
+    /// Disables SIGPIPE on the connected socket (`SO_NOSIGPIPE`) so that writes to a
+    /// peer that has already closed fail with `EPIPE` (return -1) instead of raising
+    /// SIGPIPE and killing the process.
     public static func connect(path: String) -> Int32? {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { return nil }
+        var noSigPipe: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, socklen_t(MemoryLayout<Int32>.size))
         var addr = makeSockaddr(path: path)
         let result = withUnsafePointer(to: &addr) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
