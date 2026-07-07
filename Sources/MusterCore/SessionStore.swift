@@ -52,4 +52,29 @@ public final class SessionStore {
         sessions[e.sessionId] = s
         return s
     }
+
+    /// Advance liveness. Returns ids removed this call.
+    @discardableResult
+    public func age(now: Date, idleAfter: TimeInterval, dropAfter: TimeInterval) -> [String] {
+        var removed: [String] = []
+        for (id, s) in sessions {
+            let quiet = now.timeIntervalSince(s.lastEventAt)
+            switch s.status {
+            case .needsYou:
+                continue // never ages out on its own
+            case .working:
+                if quiet >= idleAfter {
+                    var u = s
+                    u.status = .idle
+                    sessions[id] = u
+                }
+            case .idle:
+                if quiet >= idleAfter + dropAfter {
+                    sessions[id] = nil
+                    removed.append(id)
+                }
+            }
+        }
+        return removed
+    }
 }
