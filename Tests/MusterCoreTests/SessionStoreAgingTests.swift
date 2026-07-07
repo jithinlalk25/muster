@@ -42,4 +42,37 @@ final class SessionStoreAgingTests: XCTestCase {
         XCTAssertTrue(removed.isEmpty)
         XCTAssertEqual(store.sessions["s1"]?.status, .needsYou(reason: .yourTurn))
     }
+
+    func testMultiSessionSingleAgeCallHandlesEachIndependently() {
+        let store = SessionStore()
+        store.apply(HookEvent(event: .preToolUse, sessionId: "work", cwd: "/p/muster",
+                              transcriptPath: nil, toolName: "Bash", message: nil, timestamp: t0))
+        store.apply(HookEvent(event: .sessionStart, sessionId: "idle", cwd: "/p/muster",
+                              transcriptPath: nil, toolName: nil, message: nil, timestamp: t0))
+        store.apply(HookEvent(event: .stop, sessionId: "need", cwd: "/p/muster",
+                              transcriptPath: nil, toolName: nil, message: nil, timestamp: t0))
+
+        let removed = store.age(now: t0.addingTimeInterval(idle + drop + 1), idleAfter: idle, dropAfter: drop)
+
+        XCTAssertEqual(removed, ["idle"])
+        XCTAssertEqual(store.sessions["work"]?.status, .idle)
+        XCTAssertNil(store.sessions["idle"])
+        XCTAssertEqual(store.sessions["need"]?.status, .needsYou(reason: .yourTurn))
+    }
+
+    func testWorkingBecomesIdleAtExactBoundary() {
+        let store = SessionStore()
+        seed(store, .preToolUse, tool: "Bash")
+        let removed = store.age(now: t0.addingTimeInterval(300), idleAfter: idle, dropAfter: drop)
+        XCTAssertTrue(removed.isEmpty)
+        XCTAssertEqual(store.sessions["s1"]?.status, .idle)
+    }
+
+    func testIdleDropsAtExactBoundary() {
+        let store = SessionStore()
+        seed(store, .sessionStart) // starts idle
+        let removed = store.age(now: t0.addingTimeInterval(300 + 1800), idleAfter: idle, dropAfter: drop)
+        XCTAssertEqual(removed, ["s1"])
+        XCTAssertNil(store.sessions["s1"])
+    }
 }
