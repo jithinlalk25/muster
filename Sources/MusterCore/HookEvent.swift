@@ -44,3 +44,28 @@ public extension HookEvent {
         try Wire.decoder().decode(HookEvent.self, from: wire)
     }
 }
+
+public enum MusterError: Error, Equatable {
+    case unknownEvent(String)
+}
+
+public extension HookEvent {
+    /// Build a HookEvent from the raw JSON Claude Code writes to a hook's stdin.
+    /// Tolerates missing/extra fields; `timestamp` is stamped by the caller.
+    static func fromClaudeStdin(eventName: String, data: Data, timestamp: Date) throws -> HookEvent {
+        guard let kind = EventKind(rawValue: eventName) else {
+            throw MusterError.unknownEvent(eventName)
+        }
+        let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+        func str(_ key: String) -> String? { obj[key] as? String }
+        return HookEvent(
+            event: kind,
+            sessionId: str("session_id") ?? "",
+            cwd: str("cwd"),
+            transcriptPath: str("transcript_path"),
+            toolName: str("tool_name"),
+            message: str("message"),
+            timestamp: timestamp
+        )
+    }
+}
