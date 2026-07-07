@@ -1,0 +1,55 @@
+import Foundation
+
+public final class SessionStore {
+    public private(set) var sessions: [String: Session] = [:]
+
+    public init() {}
+
+    /// Apply a hook event. Returns the resulting session, or nil if it was removed.
+    @discardableResult
+    public func apply(_ e: HookEvent) -> Session? {
+        if e.event == .sessionEnd {
+            sessions[e.sessionId] = nil
+            return nil
+        }
+
+        var s = sessions[e.sessionId] ?? Session(
+            id: e.sessionId,
+            projectName: projectName(fromCwd: e.cwd),
+            cwd: e.cwd,
+            transcriptPath: e.transcriptPath,
+            title: nil,
+            status: .idle,
+            lastEventAt: e.timestamp
+        )
+
+        if let cwd = e.cwd { s.cwd = cwd; s.projectName = projectName(fromCwd: cwd) }
+        if let tp = e.transcriptPath { s.transcriptPath = tp }
+        s.lastEventAt = e.timestamp
+
+        switch e.event {
+        case .sessionStart:
+            s.status = .idle
+        case .userPromptSubmit:
+            s.currentTool = nil
+            s.status = .working(activity: nil)
+        case .preToolUse:
+            s.currentTool = e.toolName
+            s.status = .working(activity: e.toolName.map { "Running: \($0)" })
+        case .postToolUse:
+            s.status = .working(activity: e.toolName.map { "Ran: \($0)" })
+        case .notification:
+            s.status = .needsYou(reason: .permission)
+        case .stop:
+            s.currentTool = nil
+            s.status = .needsYou(reason: .yourTurn)
+        case .subagentStop:
+            s.status = .working(activity: s.currentTool.map { "Running: \($0)" })
+        case .sessionEnd:
+            break // handled above
+        }
+
+        sessions[e.sessionId] = s
+        return s
+    }
+}
