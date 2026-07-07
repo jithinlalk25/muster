@@ -59,7 +59,6 @@ public final class OnboardingModel: ObservableObject {
             let after = installer.uninstall(from: settings.read())
             try settings.write(after)
             do { try launch.setEnabled(false) } catch { lastError = "Login item: \(error)" }
-            isInstalled = false
             refresh()
         } catch {
             lastError = "Uninstall failed: \(error)"

@@ -8,6 +8,12 @@ private final class FakeLaunch: LaunchAtLoginControlling {
     func setEnabled(_ e: Bool) throws { enabled = e }
 }
 
+private final class ThrowingLaunch: LaunchAtLoginControlling {
+    struct LoginError: Error {}
+    var isEnabled: Bool { false }
+    func setEnabled(_ e: Bool) throws { throw LoginError() }
+}
+
 final class OnboardingModelTests: XCTestCase {
     var path: String!
     let bin = "/Applications/Muster.app/Contents/MacOS/muster-hook"
@@ -59,5 +65,15 @@ final class OnboardingModelTests: XCTestCase {
         XCTAssertFalse(model.isInstalled)
         XCTAssertFalse(HookInstaller().isInstalled(in: SettingsStore(path: path).read()))
         XCTAssertFalse(launch.enabled)
+    }
+
+    func testInstallWithLoginItemThrowsStillInstallsHooksAndRecordsError() {
+        let model = OnboardingModel(settings: SettingsStore(path: path), binaryPath: bin,
+                                    installer: HookInstaller(), launch: ThrowingLaunch())
+        model.launchAtLogin = true
+        model.install()
+        XCTAssertNotNil(model.lastError)
+        XCTAssertTrue(model.isInstalled)
+        XCTAssertTrue(HookInstaller().isInstalled(in: SettingsStore(path: path).read()))
     }
 }
