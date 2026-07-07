@@ -14,7 +14,7 @@ let package = Package(
         .target(name: "MusterCore"),
         .target(name: "MusterKit", dependencies: ["MusterCore"]),
         .executableTarget(name: "muster-hook", dependencies: ["MusterCore"]),
-        .executableTarget(name: "Muster", dependencies: ["MusterKit"]),
+        .executableTarget(name: "Muster", dependencies: ["MusterKit", "MusterCore"]),
         .testTarget(name: "MusterCoreTests", dependencies: ["MusterCore"]),
         .testTarget(name: "MusterKitTests", dependencies: ["MusterKit"]),
     ]
