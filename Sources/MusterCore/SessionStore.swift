@@ -53,6 +53,14 @@ public final class SessionStore {
         return s
     }
 
+    /// Insert a session discovered by a launch-time disk scan, but only if no live
+    /// session with that id already exists. Never overwrites hook-driven state.
+    public func seed(_ session: Session) {
+        if sessions[session.id] == nil {
+            sessions[session.id] = session
+        }
+    }
+
     /// Advance liveness. Returns ids removed this call.
     @discardableResult
     public func age(now: Date, idleAfter: TimeInterval, dropAfter: TimeInterval) -> [String] {
