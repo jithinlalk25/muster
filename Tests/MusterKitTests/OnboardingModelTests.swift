@@ -67,6 +67,22 @@ final class OnboardingModelTests: XCTestCase {
         XCTAssertFalse(launch.enabled)
     }
 
+    func testUninstallDoesNotTouchLoginItemWhenNeverEnabled() {
+        // Mirrors the raw-binary env: login item was never enabled and deregister would throw.
+        // Uninstalling hooks must not surface a scary login-item error when the user never
+        // turned launch-at-login on.
+        let model = OnboardingModel(settings: SettingsStore(path: path), binaryPath: bin,
+                                    installer: HookInstaller(), launch: ThrowingLaunch())
+        model.install()
+        XCTAssertTrue(model.isInstalled)
+        XCTAssertNil(model.lastError)
+
+        model.uninstall()
+        XCTAssertFalse(model.isInstalled, "hooks should still be removed")
+        XCTAssertFalse(HookInstaller().isInstalled(in: SettingsStore(path: path).read()))
+        XCTAssertNil(model.lastError, "must not deregister (or error on) a login item that was never enabled")
+    }
+
     func testInstallWithLoginItemThrowsStillInstallsHooksAndRecordsError() {
         let model = OnboardingModel(settings: SettingsStore(path: path), binaryPath: bin,
                                     installer: HookInstaller(), launch: ThrowingLaunch())

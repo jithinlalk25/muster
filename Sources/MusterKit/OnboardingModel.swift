@@ -60,7 +60,12 @@ public final class OnboardingModel: ObservableObject {
         do {
             let after = installer.uninstall(from: settings.read())
             try settings.write(after)
-            do { try launch.setEnabled(false) } catch { lastError = "Login item: \(error)" }
+            // Only deregister the login item if it's actually enabled — symmetric with install(),
+            // which only registers when the toggle is on. Avoids surfacing a login-item error when
+            // the user never enabled launch-at-login (e.g. running an unregistered/raw binary).
+            if launch.isEnabled {
+                do { try launch.setEnabled(false) } catch { lastError = "Login item: \(error)" }
+            }
             refresh()
         } catch {
             lastError = "Uninstall failed: \(error)"
