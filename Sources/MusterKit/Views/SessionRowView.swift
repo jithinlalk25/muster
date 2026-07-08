@@ -10,11 +10,6 @@ public struct SessionRowView: View {
         self.now = now
     }
 
-    private var activity: String? {
-        if case let .working(activity) = session.status { return activity }
-        return nil
-    }
-
     public var body: some View {
         HStack(alignment: .top, spacing: 8) {
             StatusDotView(dot(for: session.status))
@@ -28,13 +23,13 @@ public struct SessionRowView: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
-                if let title = session.title, !title.isEmpty {
-                    Text(title)
-                        .font(.system(size: 12))
+                if let meta = metaLine(for: session) {
+                    Text(meta)
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
-                Text(activity ?? statusLabel(for: session.status))
+                Text(subtitle(for: session))
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)

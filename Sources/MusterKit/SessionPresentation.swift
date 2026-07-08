@@ -64,3 +64,23 @@ public func shortModelName(_ id: String?) -> String? {
     if id.contains("fable") { return "fable" }
     return id
 }
+
+/// The metadata line under the project name: "branch · model" with missing parts elided.
+/// Returns nil when there is nothing to show.
+public func metaLine(for session: Session) -> String? {
+    let parts = [session.gitBranch, session.model]
+        .compactMap { $0 }
+        .filter { !$0.isEmpty }
+    return parts.isEmpty ? nil : parts.joined(separator: " · ")
+}
+
+/// The third row line: the live activity while working, else the last prompt, else the
+/// ai-title, else the status label.
+public func subtitle(for session: Session) -> String {
+    if case let .working(activity) = session.status, let activity, !activity.isEmpty {
+        return activity
+    }
+    if let p = session.lastPrompt, !p.isEmpty { return p }
+    if let t = session.title, !t.isEmpty { return t }
+    return statusLabel(for: session.status)
+}

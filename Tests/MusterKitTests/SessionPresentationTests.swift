@@ -62,4 +62,38 @@ final class SessionPresentationTests: XCTestCase {
         XCTAssertNil(shortModelName(nil))
         XCTAssertEqual(shortModelName("gpt-5"), "gpt-5") // unknown passes through
     }
+
+    func enriched(status: SessionStatus, branch: String?, model: String?,
+                  prompt: String?, title: String?) -> Session {
+        Session(id: "x", projectName: "p", title: title, status: status,
+                lastEventAt: t0, gitBranch: branch, model: model, lastPrompt: prompt)
+    }
+
+    func testMetaLineJoinsBranchAndModel() {
+        XCTAssertEqual(metaLine(for: enriched(status: .idle, branch: "main", model: "opus",
+                                              prompt: nil, title: nil)), "main · opus")
+        XCTAssertEqual(metaLine(for: enriched(status: .idle, branch: "main", model: nil,
+                                              prompt: nil, title: nil)), "main")
+        XCTAssertNil(metaLine(for: enriched(status: .idle, branch: nil, model: nil,
+                                            prompt: nil, title: nil)))
+    }
+
+    func testSubtitlePrecedence() {
+        // working with activity → activity
+        XCTAssertEqual(subtitle(for: enriched(status: .working(activity: "Running: Bash"),
+                                              branch: nil, model: nil, prompt: "p", title: "t")),
+                       "Running: Bash")
+        // not working → lastPrompt beats title
+        XCTAssertEqual(subtitle(for: enriched(status: .idle, branch: nil, model: nil,
+                                              prompt: "the prompt", title: "the title")),
+                       "the prompt")
+        // no prompt → title
+        XCTAssertEqual(subtitle(for: enriched(status: .idle, branch: nil, model: nil,
+                                              prompt: nil, title: "the title")),
+                       "the title")
+        // nothing → status label
+        XCTAssertEqual(subtitle(for: enriched(status: .needsYou(reason: .yourTurn),
+                                              branch: nil, model: nil, prompt: nil, title: nil)),
+                       "Your turn")
+    }
 }
