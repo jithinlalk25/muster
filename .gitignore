@@ -7,3 +7,6 @@ dist/
 
 # Keep the whole docs/ folder local — planning/testing notes stay on disk, never published.
 docs/
+
+# Local-only assistant/dev notes: read by Claude Code, kept on disk, never published.
+CLAUDE.md
