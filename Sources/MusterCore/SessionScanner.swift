@@ -46,8 +46,12 @@ public struct SessionScanner {
                 let id = String(file.dropLast(".jsonl".count))
                 var scanned = ScannedSession(id: id, path: full, modifiedAt: mtime)
                 if let contents = try? String(contentsOfFile: full, encoding: .utf8) {
-                    scanned.title = reader.parse(contents).title
-                    scanned.cwd = reader.firstCwd(contents)
+                    let summary = reader.summarize(contents)
+                    scanned.title = summary.title
+                    scanned.cwd = summary.cwd
+                    scanned.gitBranch = summary.gitBranch
+                    scanned.model = summary.model
+                    scanned.lastPrompt = summary.lastPrompt
                 }
                 results.append(scanned)
             }
