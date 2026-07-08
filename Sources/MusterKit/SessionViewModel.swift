@@ -151,7 +151,8 @@ public final class SessionViewModel: ObservableObject {
     func pollPidSessions(now: Date) {
         enrichQueue.async { [weak self] in
             guard let self else { return }
-            let alive = self.pidReader.read().filter { self.liveness.isAlive($0.pid) }
+            guard let all = self.pidReader.read() else { return }  // listing failed → skip; never prune live rows on a transient read error
+            let alive = all.filter { self.liveness.isAlive($0.pid) }
             DispatchQueue.main.async { self.applyAlivePidSessions(alive, now: now) }
         }
     }

@@ -3,8 +3,8 @@ import MusterCore
 @testable import MusterKit
 
 private struct FakePidReader: PidSessionReading {
-    let sessions: [PidSession]
-    func read() -> [PidSession] { sessions }
+    let sessions: [PidSession]?
+    func read() -> [PidSession]? { sessions }
 }
 
 /// Liveness keyed on pid: only the pids in `alive` are considered running.
@@ -72,5 +72,20 @@ final class SessionViewModelPidTests: XCTestCase {
         wait(for: [exp], timeout: 2)
         XCTAssertNotNil(vm.sessions.first { $0.id == "alive" })
         XCTAssertNil(vm.sessions.first { $0.id == "dead" })
+    }
+
+    func testPollSkipsReconciliationOnReadFailure() {
+        // A poll whose reader FAILS (nil) must NOT prune an existing pid-backed row.
+        let vm = SessionViewModel(socketPath: NSTemporaryDirectory() + "vm-\(UUID().uuidString).sock",
+                                  projectsDir: "/proj", sessionsDir: "/unused",
+                                  idleAfter: 300, dropAfter: 1800,
+                                  pidReader: FakePidReader(sessions: nil), liveness: FakeLiveness(alive: [42]))
+        vm.applyAlivePidSessions([pid("keep", .idle)], now: t0)      // pid-backed row exists
+        XCTAssertNotNil(vm.sessions.first { $0.id == "keep" })
+        vm.pollPidSessions(now: t0)                                  // reader nil → skip, no prune
+        let exp = expectation(description: "drain")
+        vm.enrichQueueForTests.async { DispatchQueue.main.async { exp.fulfill() } }
+        wait(for: [exp], timeout: 2)
+        XCTAssertNotNil(vm.sessions.first { $0.id == "keep" })       // still present
     }
 }

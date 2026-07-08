@@ -37,4 +37,13 @@ final class PidSessionTests: XCTestCase {
         XCTAssertThrowsError(try decode(#"{"sessionId":"s"}"#))   // missing pid
         XCTAssertThrowsError(try decode("not json"))
     }
+
+    func testPidOutOfInt32RangeThrows() {
+        XCTAssertThrowsError(try decode(#"{"pid":9999999999,"sessionId":"s","status":"idle","statusUpdatedAt":0}"#))
+    }
+
+    func testMissingStatusUpdatedAtDefaultsToEpochZero() throws {
+        let p = try decode(#"{"pid":1,"sessionId":"s","status":"idle"}"#)
+        XCTAssertEqual(p.statusUpdatedAt, Date(timeIntervalSince1970: 0))
+    }
 }

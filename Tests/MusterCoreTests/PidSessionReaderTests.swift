@@ -22,12 +22,17 @@ final class PidSessionReaderTests: XCTestCase {
         try write("empty.json", #"{"pid":3,"sessionId":"","statusUpdatedAt":0}"#) // empty id skipped
         try write("notes.txt", "ignored")                 // non-json skipped
 
-        let ids = Set(PidSessionReader(sessionsDir: dir).read().map(\.sessionId))
+        let ids = Set((PidSessionReader(sessionsDir: dir).read() ?? []).map(\.sessionId))
         XCTAssertEqual(ids, ["a", "b"])
     }
 
-    func testMissingDirReturnsEmpty() {
-        let ids = PidSessionReader(sessionsDir: dir + "/nope").read()
-        XCTAssertTrue(ids.isEmpty)
+    func testEmptyDirReturnsEmptyArrayNotNil() {
+        // dir exists (created in setUp) with no valid pid-files → [] (a legitimate prune signal).
+        XCTAssertEqual(PidSessionReader(sessionsDir: dir).read(), [PidSession]())
+    }
+
+    func testUnlistableDirReturnsNil() {
+        // A directory that cannot be listed → nil, so the caller skips reconciliation.
+        XCTAssertNil(PidSessionReader(sessionsDir: dir + "/nope").read())
     }
 }
