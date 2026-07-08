@@ -22,9 +22,7 @@ cask "muster" do
   # Muster's hooks live in ~/.claude/settings.json — remove them from inside the app
   # (right-click → Settings… → Uninstall hooks) BEFORE uninstalling, so the cask doesn't
   # leave dangling hook entries. `zap` only clears Muster's own socket dir.
-  zap trash: [
-    "~/.muster",
-  ]
+  zap trash: "~/.muster"
 
   caveats <<~EOS
     Muster runs as a menu-bar item (no Dock icon). On first launch it opens a setup
