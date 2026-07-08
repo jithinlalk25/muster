@@ -4,3 +4,7 @@
 Muster.app
 dist/
 .superpowers/
+
+# Local-only planning/testing docs: kept on disk for reference, not committed/published.
+docs/superpowers/
+docs/muster-gui-manual-testing.md
