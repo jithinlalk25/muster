@@ -40,6 +40,9 @@ their status in your menu bar: a badge tells you how many need you, and a click 
 brew install --cask jithinlalk25/homebrew-tap/muster
 ```
 
+> Homebrew asks you to trust a third-party tap once. If it says the tap is untrusted, run
+> `brew trust jithinlalk25/tap` and re-run the install.
+
 Update later with `brew upgrade --cask muster`. Releases are Developer ID-signed and notarized.
 
 ### Build from source
