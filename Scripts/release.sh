@@ -1,7 +1,7 @@
 #!/bin/bash
 # Cut a signed, notarized, stapled Muster release DMG.
 #
-# Prerequisites (one-time — see docs/RELEASING.md):
+# Prerequisites (one-time — see RELEASING.md):
 #   - Apple Developer Program membership + a "Developer ID Application" certificate
 #     imported into your login keychain.
 #   - notarytool credentials stored as a keychain profile:

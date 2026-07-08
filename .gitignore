@@ -5,7 +5,5 @@ Muster.app
 dist/
 .superpowers/
 
-# Keep the whole docs/ folder local (planning/testing notes stay on disk, never
-# published) — except the release runbook, which ships. New docs are ignored by default.
-docs/*
-!docs/RELEASING.md
+# Keep the whole docs/ folder local — planning/testing notes stay on disk, never published.
+docs/
