@@ -3,6 +3,6 @@ import XCTest
 
 final class HarnessTests: XCTestCase {
     func testVersionPresent() {
-        XCTAssertEqual(Muster.version, "0.1.0")
+        XCTAssertEqual(Muster.version, "0.2.0")
     }
 }
