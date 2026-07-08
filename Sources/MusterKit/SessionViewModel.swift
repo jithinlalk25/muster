@@ -98,6 +98,21 @@ public final class SessionViewModel: ObservableObject {
         refresh()
     }
 
+    /// Main-thread entry: find changed sessions, read their tails off-main, apply on main.
+    func enrichChangedSessions() {
+        let work = sessionsNeedingEnrichment()
+        guard !work.isEmpty else { return }
+        enrichQueue.async { [weak self] in
+            guard let self else { return }
+            let results = work.map { item in
+                EnrichmentResult(id: item.id,
+                                 mtime: self.fileMtime(item.path),
+                                 summary: self.enricher.enrich(path: item.path))
+            }
+            DispatchQueue.main.async { self.applyEnrichmentResults(results) }
+        }
+    }
+
     private func refresh() {
         sessions = sortedForDisplay(Array(store.sessions.values))
         badge = badgeState(for: sessions)
@@ -110,6 +125,7 @@ public final class SessionViewModel: ObservableObject {
         let scanned = SessionScanner(projectsDir: projectsDir)
             .scan(now: now, within: idleAfter + dropAfter)
         seed(scanned, now: now)
+        enrichChangedSessions()
 
         let server = SocketServer(path: socketPath, queue: .main) { [weak self] event in
             self?.ingest(event)
@@ -119,6 +135,7 @@ public final class SessionViewModel: ObservableObject {
 
         let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
             self?.ageNow(Date())
+            self?.enrichChangedSessions()
         }
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
