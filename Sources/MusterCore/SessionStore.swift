@@ -97,6 +97,45 @@ public final class SessionStore {
         sessions[id] = s
     }
 
+    /// Reconcile the store against the pid-files whose process is currently alive (the
+    /// caller has already filtered by liveness). Seeds unseen live sessions, promotes a
+    /// stale-idle row to working when the pid-file says busy, refreshes the human name,
+    /// and prunes any pid-backed row whose process is gone. Never demotes, and never
+    /// overwrites `needsYou`/`working`. `transcriptPath` supplies a derived path for newly
+    /// seeded rows (keeps projects-dir knowledge out of the store). Returns pruned ids.
+    @discardableResult
+    public func applyPidSessions(_ alive: [PidSession], now: Date,
+                                 transcriptPath: (PidSession) -> String?) -> [String] {
+        let aliveIds = Set(alive.map { $0.sessionId })
+        for p in alive {
+            if var s = sessions[p.sessionId] {
+                s.name = p.name
+                s.pid = p.pid
+                if p.status == .busy, case .idle = s.status {
+                    s.status = .working(activity: nil)
+                }
+                sessions[p.sessionId] = s
+            } else {
+                sessions[p.sessionId] = Session(
+                    id: p.sessionId,
+                    projectName: projectName(fromCwd: p.cwd),
+                    cwd: p.cwd,
+                    transcriptPath: transcriptPath(p),
+                    status: p.status == .busy ? .working(activity: nil) : .idle,
+                    lastEventAt: p.statusUpdatedAt,
+                    name: p.name,
+                    pid: p.pid
+                )
+            }
+        }
+        var removed: [String] = []
+        for (id, s) in sessions where s.pid != nil && !aliveIds.contains(id) {
+            sessions[id] = nil
+            removed.append(id)
+        }
+        return removed
+    }
+
     /// Advance liveness. Returns ids removed this call.
     @discardableResult
     public func age(now: Date, idleAfter: TimeInterval, dropAfter: TimeInterval) -> [String] {
@@ -115,7 +154,7 @@ public final class SessionStore {
                     sessions[id] = u
                 }
             case .idle:
-                if quiet >= idleAfter + dropAfter {
+                if s.pid == nil, quiet >= idleAfter + dropAfter {
                     sessions[id] = nil
                     removed.append(id)
                 }
