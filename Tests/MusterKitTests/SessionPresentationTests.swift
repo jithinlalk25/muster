@@ -106,4 +106,16 @@ final class SessionPresentationTests: XCTestCase {
         let emptyCwd = Session(id: "z", projectName: "p", cwd: "", status: .idle, lastEventAt: t0)
         XCTAssertNil(revealTarget(for: emptyCwd))
     }
+
+    func testPrimaryLabelPrefersNameThenProjectName() {
+        let base = Session(id: "s", projectName: "muster", status: .idle,
+                           lastEventAt: Date(timeIntervalSince1970: 0))
+        XCTAssertEqual(primaryLabel(for: base), "muster")
+
+        var named = base; named.name = "muster-56"
+        XCTAssertEqual(primaryLabel(for: named), "muster-56")
+
+        var empty = base; empty.name = ""
+        XCTAssertEqual(primaryLabel(for: empty), "muster")   // empty name falls back
+    }
 }

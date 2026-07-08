@@ -90,3 +90,10 @@ public func revealTarget(for session: Session) -> URL? {
     guard let cwd = session.cwd, !cwd.isEmpty else { return nil }
     return URL(fileURLWithPath: cwd)
 }
+
+/// The row's primary label: the pid-file's human name (e.g. "muster-56") when present,
+/// otherwise the project folder name. The name disambiguates multiple sessions in one folder.
+public func primaryLabel(for session: Session) -> String {
+    if let name = session.name, !name.isEmpty { return name }
+    return session.projectName
+}

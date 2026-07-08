@@ -16,7 +16,7 @@ public struct SessionRowView: View {
                 .padding(.top, 4)
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text(session.projectName)
+                    Text(primaryLabel(for: session))
                         .font(.system(size: 13, weight: .semibold))
                     Spacer()
                     Text(relativeTime(from: session.lastEventAt, to: now))
