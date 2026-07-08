@@ -6,13 +6,21 @@ public struct ScannedSession: Equatable, Sendable {
     public let modifiedAt: Date
     public var title: String?
     public var cwd: String?
+    public var gitBranch: String?
+    public var model: String?       // raw model id
+    public var lastPrompt: String?
 
-    public init(id: String, path: String, modifiedAt: Date, title: String? = nil, cwd: String? = nil) {
+    public init(id: String, path: String, modifiedAt: Date, title: String? = nil,
+                cwd: String? = nil, gitBranch: String? = nil, model: String? = nil,
+                lastPrompt: String? = nil) {
         self.id = id
         self.path = path
         self.modifiedAt = modifiedAt
         self.title = title
         self.cwd = cwd
+        self.gitBranch = gitBranch
+        self.model = model
+        self.lastPrompt = lastPrompt
     }
 }
 

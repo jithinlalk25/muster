@@ -85,6 +85,18 @@ public final class SessionStore {
         }
     }
 
+    /// Merge transcript-derived fields into an existing session. Non-nil values only, and
+    /// never touches hook-owned state (status, currentTool, lastEventAt). No-op if absent.
+    public func enrich(_ id: String, gitBranch: String?, model: String?,
+                       lastPrompt: String?, title: String?) {
+        guard var s = sessions[id] else { return }
+        if let gitBranch { s.gitBranch = gitBranch }
+        if let model { s.model = model }
+        if let lastPrompt { s.lastPrompt = lastPrompt }
+        if let title { s.title = title }
+        sessions[id] = s
+    }
+
     /// Advance liveness. Returns ids removed this call.
     @discardableResult
     public func age(now: Date, idleAfter: TimeInterval, dropAfter: TimeInterval) -> [String] {
