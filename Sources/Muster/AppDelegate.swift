@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ProcessInfo.processInfo.environment["MUSTER_SOCKET"] ?? (home + "/.muster/muster.sock")
     }
     private var projectsDir: String { home + "/.claude/projects" }
+    private var sessionsDir: String { home + "/.claude/sessions" }
     private var settingsPath: String { home + "/.claude/settings.json" }
 
     /// The muster-hook binary sits next to this executable (bundle MacOS dir or .build/<config>).
@@ -25,7 +26,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let vm = SessionViewModel(socketPath: socketPath, projectsDir: projectsDir)
+        let vm = SessionViewModel(socketPath: socketPath, projectsDir: projectsDir,
+                                  sessionsDir: sessionsDir)
         vm.start(now: Date())
         self.viewModel = vm
 
