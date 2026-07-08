@@ -9,7 +9,7 @@ guard args.count >= 2 else { exit(0) }
 let eventName = args[1]
 
 let socketPath = ProcessInfo.processInfo.environment["MUSTER_SOCKET"]
-    ?? (NSHomeDirectory() + "/.muster/muster.sock")
+    ?? (HomeDirectory.resolved() + "/.muster/muster.sock")
 
 let stdinData = FileHandle.standardInput.readDataToEndOfFile()
 

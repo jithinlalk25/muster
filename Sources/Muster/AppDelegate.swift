@@ -9,7 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: PanelController!
     private var onboardingWindow: NSWindow?
 
-    private let home = NSHomeDirectory()
+    private let home = HomeDirectory.resolved()
 
     private var socketPath: String {
         ProcessInfo.processInfo.environment["MUSTER_SOCKET"] ?? (home + "/.muster/muster.sock")
