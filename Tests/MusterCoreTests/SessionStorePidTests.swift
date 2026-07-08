@@ -84,4 +84,26 @@ final class SessionStorePidTests: XCTestCase {
         XCTAssertNotNil(store.sessions["live"])
         XCTAssertNil(store.sessions["legacy"])
     }
+
+    func testBusyPidBackedRowStaysWorkingAcrossLongLivedSession() {
+        // A continuously-busy pid-backed session with no hook events must NOT be demoted by
+        // age(): each poll heartbeats lastEventAt, so the quiet-timer never trips. (Regression
+        // for the working⇄idle flapping bug.)
+        let store = SessionStore()
+        store.applyPidSessions([pid("a", .busy)], now: t0, transcriptPath: noPath)     // seed working, lastEventAt=t0
+        let t10 = t0.addingTimeInterval(600)                                            // 10 min later, still busy
+        store.applyPidSessions([pid("a", .busy)], now: t10, transcriptPath: noPath)     // heartbeat → lastEventAt=t10
+        _ = store.age(now: t10.addingTimeInterval(30), idleAfter: idle, dropAfter: drop)
+        XCTAssertEqual(store.sessions["a"]?.status, .working(activity: nil))            // stayed working
+    }
+
+    func testPidIdleWorkingRowStillAgesToIdle() {
+        // The heartbeat is busy-only: a pid-idle row whose Stop hook was missed must still fall
+        // back to age()'s working→idle demotion (we did not over-fix into stuck-working).
+        let store = SessionStore()
+        hook(store, .postToolUse, tool: "Bash")                                        // working, currentTool=nil, pid=nil
+        store.applyPidSessions([pid("s1", .idle)], now: t0, transcriptPath: noPath)     // pid-backed, idle: no heartbeat, no promote
+        _ = store.age(now: t0.addingTimeInterval(idle + 1), idleAfter: idle, dropAfter: drop)
+        XCTAssertEqual(store.sessions["s1"]?.status, .idle)                             // fallback demotion still works
+    }
 }

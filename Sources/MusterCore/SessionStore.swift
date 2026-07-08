@@ -111,8 +111,13 @@ public final class SessionStore {
             if var s = sessions[p.sessionId] {
                 s.name = p.name
                 s.pid = p.pid
-                if p.status == .busy, case .idle = s.status {
-                    s.status = .working(activity: nil)
+                if p.status == .busy {
+                    // A busy pid-file is fresh evidence of activity: heartbeat lastEventAt so the
+                    // quiet-timer in age() never demotes a genuinely-working row (no flapping). A
+                    // pid `idle` reading deliberately does NOT heartbeat, so age() can still fall
+                    // back to demoting a row whose Stop hook was missed.
+                    s.lastEventAt = now
+                    if case .idle = s.status { s.status = .working(activity: nil) }  // promote-only
                 }
                 sessions[p.sessionId] = s
             } else {
@@ -122,7 +127,7 @@ public final class SessionStore {
                     cwd: p.cwd,
                     transcriptPath: transcriptPath(p),
                     status: p.status == .busy ? .working(activity: nil) : .idle,
-                    lastEventAt: p.statusUpdatedAt,
+                    lastEventAt: p.status == .busy ? now : p.statusUpdatedAt,
                     name: p.name,
                     pid: p.pid
                 )
