@@ -15,7 +15,7 @@ cask "muster" do
     strategy :github_latest
   end
 
-  depends_on macos: ">= :ventura" # macOS 13+
+  depends_on macos: :ventura # macOS 13+
 
   app "Muster.app"
 
