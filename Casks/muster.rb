@@ -3,7 +3,7 @@
 # Per release, bump `version` and `sha256` (Scripts/release.sh prints both), then push the tap.
 cask "muster" do
   version "0.1.0"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256 "2e36ab1809fa5f529fca5d006d07a3d08f7f508c3be9e29efa9f129d19f3ad60"
 
   url "https://github.com/jithinlalk25/muster/releases/download/v#{version}/Muster-#{version}.dmg"
   name "Muster"
