@@ -1,5 +1,6 @@
 import SwiftUI
 import MusterCore
+import AppKit
 
 public struct SessionListView: View {
     @ObservedObject private var vm: SessionViewModel
@@ -31,6 +32,17 @@ public struct SessionListView: View {
                             }
                             .buttonStyle(.plain)
                             .padding(.horizontal, 12)
+                            .contextMenu {
+                                if let url = revealTarget(for: session) {
+                                    Button("Reveal in Finder") {
+                                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                                    }
+                                    Button("Copy path") {
+                                        NSPasteboard.general.clearContents()
+                                        _ = NSPasteboard.general.setString(url.path, forType: .string)
+                                    }
+                                }
+                            }
                             Divider().opacity(0.4)
                         }
                     }

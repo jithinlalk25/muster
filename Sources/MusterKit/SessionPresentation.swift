@@ -84,3 +84,9 @@ public func subtitle(for session: Session) -> String {
     if let t = session.title, !t.isEmpty { return t }
     return statusLabel(for: session.status)
 }
+
+/// The folder to reveal for a session (its working directory), or nil if unknown.
+public func revealTarget(for session: Session) -> URL? {
+    guard let cwd = session.cwd, !cwd.isEmpty else { return nil }
+    return URL(fileURLWithPath: cwd)
+}

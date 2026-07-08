@@ -96,4 +96,14 @@ final class SessionPresentationTests: XCTestCase {
                                               branch: nil, model: nil, prompt: nil, title: nil)),
                        "Your turn")
     }
+
+    func testRevealTarget() {
+        let withCwd = Session(id: "x", projectName: "p", cwd: "/Users/jlk/Projects/muster",
+                              status: .idle, lastEventAt: t0)
+        XCTAssertEqual(revealTarget(for: withCwd)?.path, "/Users/jlk/Projects/muster")
+        let noCwd = Session(id: "y", projectName: "p", cwd: nil, status: .idle, lastEventAt: t0)
+        XCTAssertNil(revealTarget(for: noCwd))
+        let emptyCwd = Session(id: "z", projectName: "p", cwd: "", status: .idle, lastEventAt: t0)
+        XCTAssertNil(revealTarget(for: emptyCwd))
+    }
 }
