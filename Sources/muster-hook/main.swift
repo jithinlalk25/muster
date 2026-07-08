@@ -14,6 +14,7 @@ let socketPath = ProcessInfo.processInfo.environment["MUSTER_SOCKET"]
 let stdinData = FileHandle.standardInput.readDataToEndOfFile()
 
 guard let event = try? HookEvent.fromClaudeStdin(eventName: eventName, data: stdinData, timestamp: Date()),
+      !event.sessionId.isEmpty, // nothing to attribute an empty-id event to; drop it
       let line = try? event.wireLine(),
       let fd = UnixSocket.connect(path: socketPath) else {
     exit(0)

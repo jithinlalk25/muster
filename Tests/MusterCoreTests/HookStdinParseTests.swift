@@ -25,6 +25,14 @@ final class HookStdinParseTests: XCTestCase {
         XCTAssertNil(e.toolName)
     }
 
+    func testSessionStartParsesSource() throws {
+        let json = #"{"session_id":"s3","source":"compact","hook_event_name":"SessionStart"}"#
+        let e = try HookEvent.fromClaudeStdin(eventName: "SessionStart",
+                                              data: Data(json.utf8), timestamp: ts)
+        XCTAssertEqual(e.event, .sessionStart)
+        XCTAssertEqual(e.source, "compact")
+    }
+
     func testMissingFieldsTolerated() throws {
         let e = try HookEvent.fromClaudeStdin(eventName: "Stop",
                                               data: Data("{}".utf8), timestamp: ts)

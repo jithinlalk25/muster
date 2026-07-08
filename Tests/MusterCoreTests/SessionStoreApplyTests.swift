@@ -4,9 +4,9 @@ import XCTest
 final class SessionStoreApplyTests: XCTestCase {
     let ts = Date(timeIntervalSince1970: 1_700_000_000)
     func ev(_ k: EventKind, tool: String? = nil, msg: String? = nil,
-            cwd: String? = "/p/muster", at: Date? = nil) -> HookEvent {
+            source: String? = nil, cwd: String? = "/p/muster", at: Date? = nil) -> HookEvent {
         HookEvent(event: k, sessionId: "s1", cwd: cwd, transcriptPath: "/t/s1.jsonl",
-                  toolName: tool, message: msg, timestamp: at ?? ts)
+                  toolName: tool, message: msg, source: source, timestamp: at ?? ts)
     }
 
     func testStartThenPromptThenTool() {
@@ -92,6 +92,35 @@ final class SessionStoreApplyTests: XCTestCase {
         let result = store.apply(ev(.sessionEnd))
         XCTAssertNil(result)
         XCTAssertNil(store.sessions["s1"])
+    }
+
+    func testSessionStartStartupIsIdle() {
+        let store = SessionStore()
+        _ = store.apply(ev(.sessionStart, source: "startup"))
+        XCTAssertEqual(store.sessions["s1"]?.status, .idle)
+    }
+
+    func testSessionStartResumeIsIdle() {
+        let store = SessionStore()
+        _ = store.apply(ev(.sessionStart, source: "resume"))
+        XCTAssertEqual(store.sessions["s1"]?.status, .idle)
+    }
+
+    func testSessionStartCompactPreservesExistingStatus() {
+        // Compaction fires mid-turn while the session is working; it must not be reset
+        // to idle the way a real startup/clear would.
+        let store = SessionStore()
+        _ = store.apply(ev(.userPromptSubmit))
+        XCTAssertEqual(store.sessions["s1"]?.status, .working(activity: nil))
+        _ = store.apply(ev(.sessionStart, source: "compact"))
+        XCTAssertEqual(store.sessions["s1"]?.status, .working(activity: nil))
+    }
+
+    func testSessionStartCompactSeedsNewSessionAsWorking() {
+        // If we first learn of a session via a compact event, it is mid-conversation.
+        let store = SessionStore()
+        _ = store.apply(ev(.sessionStart, source: "compact"))
+        XCTAssertEqual(store.sessions["s1"]?.status, .working(activity: nil))
     }
 
     func emptyIdEvent(_ k: EventKind) -> HookEvent {

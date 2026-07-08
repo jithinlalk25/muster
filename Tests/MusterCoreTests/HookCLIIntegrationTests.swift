@@ -41,6 +41,33 @@ final class HookCLIIntegrationTests: XCTestCase {
         XCTAssertEqual(got?.toolName, "Bash")
     }
 
+    func testCLIDropsEventWithEmptySessionId() throws {
+        let binary = try hookBinaryURL()
+        let path = NSTemporaryDirectory() + "muster-cli-\(UUID().uuidString).sock"
+
+        let notReceived = expectation(description: "server received nothing")
+        notReceived.isInverted = true
+        var got: HookEvent?
+        let server = SocketServer(path: path, queue: .main) { ev in got = ev; notReceived.fulfill() }
+        try server.start()
+        defer { server.stop() }
+
+        let proc = Process()
+        proc.executableURL = binary
+        proc.arguments = ["PreToolUse"]
+        proc.environment = ["MUSTER_SOCKET": path]
+        let stdin = Pipe()
+        proc.standardInput = stdin
+        try proc.run()
+        stdin.fileHandleForWriting.write(Data(#"{"session_id":"","tool_name":"Bash"}"#.utf8))
+        stdin.fileHandleForWriting.closeFile()
+        proc.waitUntilExit()
+
+        XCTAssertEqual(proc.terminationStatus, 0) // still fail-open
+        wait(for: [notReceived], timeout: 1.0)
+        XCTAssertNil(got, "hook must not forward an event with an empty session id")
+    }
+
     func testCLIFailsOpenWithNoServer() throws {
         let binary = try hookBinaryURL()
         let proc = Process()

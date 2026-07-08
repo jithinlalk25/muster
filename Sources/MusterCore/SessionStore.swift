@@ -33,7 +33,14 @@ public final class SessionStore {
 
         switch e.event {
         case .sessionStart:
-            s.status = .idle
+            // A `compact` SessionStart fires mid-turn (context compaction) and the session
+            // keeps working; only a genuine startup/resume/clear should reset to idle.
+            if e.source == "compact" {
+                if sessions[e.sessionId] == nil { s.status = .working(activity: nil) }
+                // otherwise preserve the existing (carried-over) status
+            } else {
+                s.status = .idle
+            }
         case .userPromptSubmit:
             s.currentTool = nil
             s.status = .working(activity: nil)

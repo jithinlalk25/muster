@@ -18,17 +18,20 @@ public struct HookEvent: Codable, Equatable, Sendable {
     public var transcriptPath: String?
     public var toolName: String?
     public var message: String?
+    /// Why a SessionStart fired: startup | resume | clear | compact (nil for other events).
+    public var source: String?
     public var timestamp: Date
 
     public init(event: EventKind, sessionId: String, cwd: String? = nil,
                 transcriptPath: String? = nil, toolName: String? = nil,
-                message: String? = nil, timestamp: Date) {
+                message: String? = nil, source: String? = nil, timestamp: Date) {
         self.event = event
         self.sessionId = sessionId
         self.cwd = cwd
         self.transcriptPath = transcriptPath
         self.toolName = toolName
         self.message = message
+        self.source = source
         self.timestamp = timestamp
     }
 }
@@ -65,6 +68,7 @@ public extension HookEvent {
             transcriptPath: str("transcript_path"),
             toolName: str("tool_name"),
             message: str("message"),
+            source: str("source"),
             timestamp: timestamp
         )
     }
