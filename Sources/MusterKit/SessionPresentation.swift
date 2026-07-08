@@ -53,3 +53,14 @@ public func badgeState(for sessions: [Session]) -> BadgeState {
     }.count
     return BadgeState(needsYouCount: count)
 }
+
+/// Map a raw Claude model id to a short display name; nil when there is nothing useful
+/// to show. Unknown ids pass through unchanged so a new model still renders something.
+public func shortModelName(_ id: String?) -> String? {
+    guard let id, !id.isEmpty, id != "<synthetic>" else { return nil }
+    if id.contains("opus") { return "opus" }
+    if id.contains("sonnet") { return "sonnet" }
+    if id.contains("haiku") { return "haiku" }
+    if id.contains("fable") { return "fable" }
+    return id
+}

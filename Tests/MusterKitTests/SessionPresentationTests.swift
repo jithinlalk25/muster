@@ -51,4 +51,15 @@ final class SessionPresentationTests: XCTestCase {
         XCTAssertTrue(badge.isAlert)
         XCTAssertFalse(badgeState(for: []).isAlert)
     }
+
+    func testShortModelName() {
+        XCTAssertEqual(shortModelName("claude-opus-4-8"), "opus")
+        XCTAssertEqual(shortModelName("claude-sonnet-5"), "sonnet")
+        XCTAssertEqual(shortModelName("claude-haiku-4-5-20251001"), "haiku")
+        XCTAssertEqual(shortModelName("claude-fable-5"), "fable")
+        XCTAssertNil(shortModelName("<synthetic>"))
+        XCTAssertNil(shortModelName(""))
+        XCTAssertNil(shortModelName(nil))
+        XCTAssertEqual(shortModelName("gpt-5"), "gpt-5") // unknown passes through
+    }
 }
