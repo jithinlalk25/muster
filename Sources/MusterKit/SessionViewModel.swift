@@ -2,6 +2,16 @@ import Foundation
 import Combine
 import MusterCore
 
+/// Derive a session's transcript path from its cwd, matching Claude's project-dir slug
+/// (every `/` becomes `-`). Lets a pid-seeded row be enriched like any other. Returns nil
+/// when the cwd is unknown; if the derived path is wrong (e.g. a cwd with dots), the
+/// enrichment layer simply no-ops.
+func claudeTranscriptPath(projectsDir: String, cwd: String?, sessionId: String) -> String? {
+    guard let cwd, !cwd.isEmpty else { return nil }
+    let slug = cwd.replacingOccurrences(of: "/", with: "-")
+    return projectsDir + "/" + slug + "/" + sessionId + ".jsonl"
+}
+
 /// Observable owner of live session state. Main-thread confined: every method here
 /// runs on the main thread, matching the SocketServer handler queue (.main) and the
 /// aging Timer's run loop. Do not touch from other threads.
@@ -24,20 +34,29 @@ public final class SessionViewModel: ObservableObject {
     private let fileMtime: (String) -> Date?
     private var lastEnriched: [String: Date] = [:]
     private let enrichQueue = DispatchQueue(label: "com.jlk.muster.enrich", qos: .utility)
+    private let pidReader: PidSessionReading
+    private let liveness: ProcessLiveness
+
+    /// Test seam: lets a test drain the same queue `pollPidSessions` uses before draining main.
+    var enrichQueueForTests: DispatchQueue { enrichQueue }
 
     private var server: SocketServer?
     private var timer: Timer?
 
-    public init(socketPath: String, projectsDir: String,
+    public init(socketPath: String, projectsDir: String, sessionsDir: String = "",
                 idleAfter: TimeInterval = 300, dropAfter: TimeInterval = 1800,
                 enricher: TranscriptEnriching = TranscriptEnricher(),
-                fileMtime: @escaping (String) -> Date? = SessionViewModel.defaultMtime) {
+                fileMtime: @escaping (String) -> Date? = SessionViewModel.defaultMtime,
+                pidReader: PidSessionReading? = nil,
+                liveness: ProcessLiveness = DefaultProcessLiveness()) {
         self.socketPath = socketPath
         self.projectsDir = projectsDir
         self.idleAfter = idleAfter
         self.dropAfter = dropAfter
         self.enricher = enricher
         self.fileMtime = fileMtime
+        self.pidReader = pidReader ?? PidSessionReader(sessionsDir: sessionsDir)
+        self.liveness = liveness
     }
 
     public static func defaultMtime(_ path: String) -> Date? {
@@ -118,6 +137,25 @@ public final class SessionViewModel: ObservableObject {
         badge = badgeState(for: sessions)
     }
 
+    // MARK: - Pid-file reconciliation (authoritative liveness + name)
+
+    /// Apply an already-liveness-filtered set of pid-files on the main thread.
+    func applyAlivePidSessions(_ alive: [PidSession], now: Date) {
+        _ = store.applyPidSessions(alive, now: now) { [projectsDir] p in
+            claudeTranscriptPath(projectsDir: projectsDir, cwd: p.cwd, sessionId: p.sessionId)
+        }
+        refresh()
+    }
+
+    /// Main-thread entry: read pid-files + probe liveness off-main, apply on main.
+    func pollPidSessions(now: Date) {
+        enrichQueue.async { [weak self] in
+            guard let self else { return }
+            let alive = self.pidReader.read().filter { self.liveness.isAlive($0.pid) }
+            DispatchQueue.main.async { self.applyAlivePidSessions(alive, now: now) }
+        }
+    }
+
     // MARK: - Live wiring (exercised in Task 13/15, not in unit tests)
 
     /// Scan disk, start the socket listener, and schedule the aging timer. Main-thread only.
@@ -125,6 +163,7 @@ public final class SessionViewModel: ObservableObject {
         let scanned = SessionScanner(projectsDir: projectsDir)
             .scan(now: now, within: idleAfter + dropAfter)
         seed(scanned, now: now)
+        pollPidSessions(now: now)
         enrichChangedSessions()
 
         let server = SocketServer(path: socketPath, queue: .main) { [weak self] event in
@@ -134,7 +173,9 @@ public final class SessionViewModel: ObservableObject {
         self.server = server
 
         let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
-            self?.ageNow(Date())
+            let now = Date()
+            self?.ageNow(now)
+            self?.pollPidSessions(now: now)
             self?.enrichChangedSessions()
         }
         RunLoop.main.add(timer, forMode: .common)
