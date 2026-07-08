@@ -27,4 +27,26 @@ final class TranscriptTailTests: XCTestCase {
     func testMissingFileReturnsNil() {
         XCTAssertNil(TranscriptTail.read(path: path + "-nope", maxBytes: 1024))
     }
+
+    func testEmptyFileReturnsEmptyString() throws {
+        try write("")
+        XCTAssertEqual(TranscriptTail.read(path: path, maxBytes: 1024), "")
+    }
+
+    func testExactBoundaryReturnsWholeContents() throws {
+        try write("line1\nline2") // 11 bytes
+        XCTAssertEqual(TranscriptTail.read(path: path, maxBytes: 11), "line1\nline2")
+    }
+
+    func testNoNewlineOversizeTailReturnsBestEffortNotNil() throws {
+        // A single line with no newline, longer than maxBytes, starting mid-multibyte.
+        try write(String(repeating: "é", count: 40)) // 80 bytes, no newline
+        XCTAssertNotNil(TranscriptTail.read(path: path, maxBytes: 7)) // deterministic, never nil
+    }
+
+    func testNonPositiveMaxBytesReturnsNil() throws {
+        try write("hello")
+        XCTAssertNil(TranscriptTail.read(path: path, maxBytes: 0))
+        XCTAssertNil(TranscriptTail.read(path: path, maxBytes: -1)) // must not crash
+    }
 }
