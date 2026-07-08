@@ -11,6 +11,23 @@ public struct TranscriptMessage: Equatable, Sendable {
     }
 }
 
+public struct TranscriptSummary: Equatable, Sendable {
+    public var title: String?
+    public var cwd: String?
+    public var gitBranch: String?
+    public var model: String?      // raw model id, e.g. "claude-opus-4-8"
+    public var lastPrompt: String?
+
+    public init(title: String? = nil, cwd: String? = nil, gitBranch: String? = nil,
+                model: String? = nil, lastPrompt: String? = nil) {
+        self.title = title
+        self.cwd = cwd
+        self.gitBranch = gitBranch
+        self.model = model
+        self.lastPrompt = lastPrompt
+    }
+}
+
 public struct TranscriptReader {
     public init() {}
 
@@ -32,6 +49,42 @@ public struct TranscriptReader {
             }
         }
         return (messages, title)
+    }
+
+    /// Single-pass digest of a transcript (or a tail of one). "Last wins" for values that
+    /// change over the session; cwd is the first non-empty. lastPrompt prefers an explicit
+    /// last-prompt record, else the most recent non-meta user message.
+    public func summarize(_ contents: String) -> TranscriptSummary {
+        var s = TranscriptSummary()
+        var worktreeBranch: String?
+        var lastUserHumanText: String?
+        for obj in objects(contents) {
+            if s.cwd == nil, let cwd = obj["cwd"] as? String, !cwd.isEmpty { s.cwd = cwd }
+            if let br = obj["gitBranch"] as? String, !br.isEmpty { s.gitBranch = br }
+            switch obj["type"] as? String {
+            case "ai-title":
+                if let t = obj["aiTitle"] as? String { s.title = t }
+            case "last-prompt":
+                if let p = obj["lastPrompt"] as? String, !p.isEmpty { s.lastPrompt = p }
+            case "worktree-state":
+                if let ws = obj["worktreeSession"] as? [String: Any],
+                   let wb = ws["worktreeBranch"] as? String, !wb.isEmpty { worktreeBranch = wb }
+            case "assistant":
+                if let msg = obj["message"] as? [String: Any],
+                   let m = msg["model"] as? String, !m.isEmpty { s.model = m }
+            case "user":
+                let isMeta = (obj["isMeta"] as? Bool) ?? false
+                if !isMeta, let msg = obj["message"] as? [String: Any] {
+                    let text = Self.extractText(msg["content"])
+                    if !text.isEmpty { lastUserHumanText = text }
+                }
+            default:
+                break
+            }
+        }
+        if s.gitBranch == "HEAD", let worktreeBranch { s.gitBranch = worktreeBranch }
+        if s.lastPrompt == nil { s.lastPrompt = lastUserHumanText }
+        return s
     }
 
     public func firstCwd(_ contents: String) -> String? {
