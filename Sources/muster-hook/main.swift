@@ -11,7 +11,9 @@ let eventName = args[1]
 let socketPath = ProcessInfo.processInfo.environment["MUSTER_SOCKET"]
     ?? (HomeDirectory.resolved() + "/.muster/muster.sock")
 
-let stdinData = FileHandle.standardInput.readDataToEndOfFile()
+// readToEnd() throws a catchable Swift error on I/O failure (fail-open); the older
+// readDataToEndOfFile() throws an *uncatchable* ObjC exception that would crash the hook.
+let stdinData = (try? FileHandle.standardInput.readToEnd()) ?? Data()
 
 guard let event = try? HookEvent.fromClaudeStdin(eventName: eventName, data: stdinData, timestamp: Date()),
       !event.sessionId.isEmpty, // nothing to attribute an empty-id event to; drop it
