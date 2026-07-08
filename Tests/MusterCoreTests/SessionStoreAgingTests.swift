@@ -12,8 +12,9 @@ final class SessionStoreAgingTests: XCTestCase {
     }
 
     func testWorkingBecomesIdleAfterN() {
+        // A working session with no tool in flight (tool already returned) ages to idle.
         let store = SessionStore()
-        seed(store, .preToolUse, tool: "Bash")
+        seed(store, .postToolUse, tool: "Bash")
         let removed = store.age(now: t0.addingTimeInterval(301), idleAfter: idle, dropAfter: drop)
         XCTAssertTrue(removed.isEmpty)
         XCTAssertEqual(store.sessions["s1"]?.status, .idle)
@@ -21,8 +22,19 @@ final class SessionStoreAgingTests: XCTestCase {
 
     func testWorkingStaysBeforeN() {
         let store = SessionStore()
-        seed(store, .preToolUse, tool: "Bash")
+        seed(store, .postToolUse, tool: "Bash")
         _ = store.age(now: t0.addingTimeInterval(299), idleAfter: idle, dropAfter: drop)
+        XCTAssertEqual(store.sessions["s1"]?.status, .working(activity: "Ran: Bash"))
+    }
+
+    func testWorkingWithToolInFlightDoesNotIdle() {
+        // A single long-running tool (e.g. a >5min build) fires no events between
+        // PreToolUse and PostToolUse. The session is genuinely working and must not be
+        // demoted to idle while its tool is still in flight.
+        let store = SessionStore()
+        seed(store, .preToolUse, tool: "Bash")
+        let removed = store.age(now: t0.addingTimeInterval(idle + 10_000), idleAfter: idle, dropAfter: drop)
+        XCTAssertTrue(removed.isEmpty)
         XCTAssertEqual(store.sessions["s1"]?.status, .working(activity: "Running: Bash"))
     }
 
@@ -45,7 +57,7 @@ final class SessionStoreAgingTests: XCTestCase {
 
     func testMultiSessionSingleAgeCallHandlesEachIndependently() {
         let store = SessionStore()
-        store.apply(HookEvent(event: .preToolUse, sessionId: "work", cwd: "/p/muster",
+        store.apply(HookEvent(event: .postToolUse, sessionId: "work", cwd: "/p/muster",
                               transcriptPath: nil, toolName: "Bash", message: nil, timestamp: t0))
         store.apply(HookEvent(event: .sessionStart, sessionId: "idle", cwd: "/p/muster",
                               transcriptPath: nil, toolName: nil, message: nil, timestamp: t0))
@@ -62,7 +74,7 @@ final class SessionStoreAgingTests: XCTestCase {
 
     func testWorkingBecomesIdleAtExactBoundary() {
         let store = SessionStore()
-        seed(store, .preToolUse, tool: "Bash")
+        seed(store, .postToolUse, tool: "Bash")
         let removed = store.age(now: t0.addingTimeInterval(300), idleAfter: idle, dropAfter: drop)
         XCTAssertTrue(removed.isEmpty)
         XCTAssertEqual(store.sessions["s1"]?.status, .idle)

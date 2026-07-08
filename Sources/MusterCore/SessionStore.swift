@@ -8,6 +8,10 @@ public final class SessionStore {
     /// Apply a hook event. Returns the resulting session, or nil if it was removed.
     @discardableResult
     public func apply(_ e: HookEvent) -> Session? {
+        // An empty session id would key a phantom row that collapses distinct sessions
+        // (and a blank-id SessionEnd could wipe it). Drop such events entirely.
+        guard !e.sessionId.isEmpty else { return nil }
+
         if e.event == .sessionEnd {
             sessions[e.sessionId] = nil
             return nil
@@ -37,20 +41,33 @@ public final class SessionStore {
             s.currentTool = e.toolName
             s.status = .working(activity: e.toolName.map { "Running: \($0)" })
         case .postToolUse:
+            s.currentTool = nil
             s.status = .working(activity: e.toolName.map { "Ran: \($0)" })
         case .notification:
-            s.status = .needsYou(reason: .permission)
+            s.status = .needsYou(reason: Self.notificationReason(e.message))
         case .stop:
             s.currentTool = nil
             s.status = .needsYou(reason: .yourTurn)
         case .subagentStop:
-            s.status = .working(activity: s.currentTool.map { "Running: \($0)" })
+            // A subagent returned; the main agent is thinking again. Don't reuse the
+            // last tool name — it usually points at an already-finished tool call.
+            s.status = .working(activity: nil)
         case .sessionEnd:
             break // handled above
         }
 
         sessions[e.sessionId] = s
         return s
+    }
+
+    /// Classify a Notification event. Claude Code fires Notification for two distinct
+    /// cases: a tool-permission request ("… needs your permission to use …") and the
+    /// ~60s idle prompt ("Claude is waiting for your input"). Only the former is a
+    /// permission gate; everything else (including a missing message) means the session
+    /// is simply waiting on the user.
+    static func notificationReason(_ message: String?) -> NeedsReason {
+        guard let message, message.lowercased().contains("permission") else { return .yourTurn }
+        return .permission
     }
 
     /// Insert a session discovered by a launch-time disk scan, but only if no live
@@ -71,7 +88,9 @@ public final class SessionStore {
             case .needsYou:
                 continue // never ages out on its own
             case .working:
-                if quiet >= idleAfter {
+                // A tool still in flight (PreToolUse seen, PostToolUse not yet) means the
+                // session is genuinely busy even though no events fire during a long call.
+                if quiet >= idleAfter, s.currentTool == nil {
                     var u = s
                     u.status = .idle
                     sessions[id] = u

@@ -37,11 +37,53 @@ final class SessionStoreApplyTests: XCTestCase {
         XCTAssertEqual(store.sessions["s1"]?.status, .needsYou(reason: .permission))
     }
 
-    func testSubagentStopStaysWorking() {
+    func testNotificationPermissionRequestSetsPermission() {
+        let store = SessionStore()
+        _ = store.apply(ev(.notification, msg: "Claude needs your permission to use Bash"))
+        XCTAssertEqual(store.sessions["s1"]?.status, .needsYou(reason: .permission))
+    }
+
+    func testNotificationIdlePromptSetsYourTurn() {
+        // The ~60s idle notification is NOT a permission request; it means Claude is
+        // waiting on the user, which is the same as a your-turn state.
+        let store = SessionStore()
+        _ = store.apply(ev(.notification, msg: "Claude is waiting for your input"))
+        XCTAssertEqual(store.sessions["s1"]?.status, .needsYou(reason: .yourTurn))
+    }
+
+    func testNotificationWithoutMessageDefaultsToYourTurn() {
+        let store = SessionStore()
+        _ = store.apply(ev(.notification, msg: nil))
+        XCTAssertEqual(store.sessions["s1"]?.status, .needsYou(reason: .yourTurn))
+    }
+
+    func testNotificationDoesNotDowngradeIsHandledByMessage() {
+        // Regression for the bug where a your-turn session got rewritten to permission:
+        // Stop → your turn, then the idle notification (~60s later) must stay your turn.
+        let store = SessionStore()
+        _ = store.apply(ev(.stop))
+        XCTAssertEqual(store.sessions["s1"]?.status, .needsYou(reason: .yourTurn))
+        _ = store.apply(ev(.notification, msg: "Claude is waiting for your input"))
+        XCTAssertEqual(store.sessions["s1"]?.status, .needsYou(reason: .yourTurn))
+    }
+
+    func testPostToolUseClearsCurrentTool() {
+        // Once a tool finishes, no tool is in flight — currentTool must not linger.
+        let store = SessionStore()
+        _ = store.apply(ev(.preToolUse, tool: "Bash"))
+        XCTAssertEqual(store.sessions["s1"]?.currentTool, "Bash")
+        _ = store.apply(ev(.postToolUse, tool: "Bash"))
+        XCTAssertEqual(store.sessions["s1"]?.status, .working(activity: "Ran: Bash"))
+        XCTAssertNil(store.sessions["s1"]?.currentTool)
+    }
+
+    func testSubagentStopReturnsToWorkingWithoutStaleTool() {
+        // After a subagent returns, the main agent is thinking again. Reusing the last
+        // tool name ("Running: Task") would show a tool that has already finished.
         let store = SessionStore()
         _ = store.apply(ev(.preToolUse, tool: "Task"))
         _ = store.apply(ev(.subagentStop))
-        XCTAssertEqual(store.sessions["s1"]?.status, .working(activity: "Running: Task"))
+        XCTAssertEqual(store.sessions["s1"]?.status, .working(activity: nil))
     }
 
     func testSessionEndRemoves() {
@@ -50,6 +92,26 @@ final class SessionStoreApplyTests: XCTestCase {
         let result = store.apply(ev(.sessionEnd))
         XCTAssertNil(result)
         XCTAssertNil(store.sessions["s1"])
+    }
+
+    func emptyIdEvent(_ k: EventKind) -> HookEvent {
+        HookEvent(event: k, sessionId: "", cwd: "/p/muster", transcriptPath: nil,
+                  toolName: nil, message: nil, timestamp: ts)
+    }
+
+    func testEmptySessionIdIsRejected() {
+        let store = SessionStore()
+        let result = store.apply(emptyIdEvent(.userPromptSubmit))
+        XCTAssertNil(result)
+        XCTAssertTrue(store.sessions.isEmpty)
+    }
+
+    func testEmptySessionIdEndDoesNotWipeExistingSessions() {
+        let store = SessionStore()
+        _ = store.apply(ev(.userPromptSubmit)) // real session "s1"
+        let result = store.apply(emptyIdEvent(.sessionEnd))
+        XCTAssertNil(result)
+        XCTAssertNotNil(store.sessions["s1"])
     }
 
     func testLastEventAtRefreshes() {
