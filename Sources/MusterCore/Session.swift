@@ -23,11 +23,14 @@ public struct Session: Equatable, Identifiable, Sendable {
     public var gitBranch: String?
     public var model: String?
     public var lastPrompt: String?
+    public var name: String?
+    public var pid: Int32?
 
     public init(id: String, projectName: String, cwd: String? = nil,
                 transcriptPath: String? = nil, title: String? = nil,
                 status: SessionStatus, lastEventAt: Date, currentTool: String? = nil,
-                gitBranch: String? = nil, model: String? = nil, lastPrompt: String? = nil) {
+                gitBranch: String? = nil, model: String? = nil, lastPrompt: String? = nil,
+                name: String? = nil, pid: Int32? = nil) {
         self.id = id
         self.projectName = projectName
         self.cwd = cwd
@@ -39,6 +42,8 @@ public struct Session: Equatable, Identifiable, Sendable {
         self.gitBranch = gitBranch
         self.model = model
         self.lastPrompt = lastPrompt
+        self.name = name
+        self.pid = pid
     }
 }
 
